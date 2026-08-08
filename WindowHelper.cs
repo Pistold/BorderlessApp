@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 
 namespace BorderlessApp
 {
@@ -15,9 +16,6 @@ namespace BorderlessApp
         [DllImport("user32.dll")]
         private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
             int X, int Y, int cx, int cy, uint uFlags);
-
-        [DllImport("user32.dll")]
-        private static extern int GetSystemMetrics(int nIndex);
 
         [DllImport("user32.dll")]
         private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
@@ -39,8 +37,6 @@ namespace BorderlessApp
         private const uint SWP_NOACTIVATE = 0x0010;
         private const uint SWP_NOMOVE = 0x0002;
         private const uint SWP_NOSIZE = 0x0001;
-        private const int SM_CXSCREEN = 0;
-        private const int SM_CYSCREEN = 1;
 
         // True if the window still has its title bar/border (i.e. hasn't
         // been made borderless yet, or reset itself back to windowed).
@@ -65,10 +61,16 @@ namespace BorderlessApp
             style &= ~WS_THICKFRAME;
             SetWindowLong(hWnd, GWL_STYLE, style);
 
-            int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-            int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+            // Size to whichever monitor the window is CURRENTLY on, not
+            // always the primary display - matters for multi-monitor setups
+            // where the game might be running on a second/ultrawide screen.
+            // Screen.Bounds is in virtual-desktop coordinates, so a monitor
+            // to the left/above the primary one (negative X/Y) is handled
+            // correctly too.
+            var screenBounds = Screen.FromHandle(hWnd).Bounds;
 
-            SetWindowPos(hWnd, IntPtr.Zero, 0, 0, screenWidth, screenHeight,
+            SetWindowPos(hWnd, IntPtr.Zero, screenBounds.X, screenBounds.Y,
+                screenBounds.Width, screenBounds.Height,
                 SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOACTIVATE);
         }
 

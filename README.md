@@ -23,6 +23,29 @@ cd BorderlessApp
 dotnet run
 ```
 
+## Cutting a release (both .exe downloads)
+
+A GitHub Actions workflow (`.github/workflows/release.yml`) builds both variants
+and attaches them to a GitHub Release automatically. To trigger it, tag a
+commit and push the tag:
+
+```
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+That kicks off the workflow, which:
+1. Builds a **framework-dependent** exe (small, needs the .NET 8 Desktop Runtime already installed)
+2. Builds a **self-contained single-file** exe (~150MB, no dependencies needed)
+3. Renames them to `BorderlessApp-FrameworkDependent.exe` and `BorderlessApp-SelfContained.exe`
+4. Publishes a GitHub Release for that tag with both attached
+
+Watch it run under your repo's **Actions** tab. Once it finishes, the release
+shows up under **Releases** with both files ready to download.
+
+To cut a new release later, bump the version and push a new tag (e.g. `v1.0.1`) —
+no manual building required.
+
 ## Using it
 
 1. Launch a game in **windowed mode** (not fullscreen).
@@ -38,5 +61,4 @@ dotnet run
 
 - Matching is by **process name**, not window title, since titles change (level names, FPS counters, etc). If two different games share an executable name (rare), they'd conflict.
 - Games using **exclusive fullscreen** internally will fight this — make sure the game itself is set to "Windowed" in its own graphics settings first.
-- No handling yet for **multi-monitor** setups where you want the game on a non-primary display — currently it always sizes to the primary screen (`GetSystemMetrics`). Swapping in `Screen.AllScreens` (from `System.Windows.Forms`) to let the user pick a monitor is a natural next step.
 - The tray icon uses a placeholder system icon — swap in a real `.ico` file for a polished look.

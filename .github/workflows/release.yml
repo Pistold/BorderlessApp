@@ -1,0 +1,61 @@
+name: Build and Release
+
+# Runs whenever you push a tag like v1.0.0 - see the "Cutting a release"
+# section in README.md for the exact commands.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Needed so this workflow is allowed to create a release and upload files to it.
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    # WinForms targets net8.0-windows, so this has to build on a Windows runner.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish framework-dependent build
+        run: >
+          dotnet publish BorderlessApp.csproj
+          -c Release -r win-x64 --self-contained false
+          -o publish/framework-dependent
+
+      - name: Publish self-contained build
+        run: >
+          dotnet publish BorderlessApp.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish/self-contained
+
+      - name: Rename executables for the release
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          Copy-Item "publish/framework-dependent/BorderlessApp.exe" "release-assets/BorderlessApp-FrameworkDependent.exe"
+          Copy-Item "publish/self-contained/BorderlessApp.exe" "release-assets/BorderlessApp-SelfContained.exe"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/BorderlessApp-FrameworkDependent.exe
+            release-assets/BorderlessApp-SelfContained.exe
+          generate_release_notes: true
+          body: |
+            **BorderlessApp-FrameworkDependent.exe** - small download, requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) to already be installed.
+
+            **BorderlessApp-SelfContained.exe** - larger download (~150MB), but works standalone with nothing else to install.
+
+            Unsigned build - Windows SmartScreen may warn on first run. Click "More info" -> "Run anyway".
