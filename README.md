@@ -11,40 +11,6 @@ automatically from then on — even if you launch the app before the game.
 - **MainForm.cs** — the UI: list of saved games, "Add Running Game" picker, tray icon, and a background timer that checks every 1.5s for any saved game that's running and borders it
 - **Program.cs** — entry point
 
-## Building it
-
-1. Install **Visual Studio Community** (free) with the ".NET desktop development" workload.
-2. Open Visual Studio → **File → Open → Project/Folder** → select this `BorderlessApp` folder (the `.csproj` will be picked up automatically).
-3. Press **F5** (or Ctrl+F5 to run without debugging).
-
-Alternatively, from a terminal with the .NET SDK installed:
-```
-cd BorderlessApp
-dotnet run
-```
-
-## Cutting a release (both .exe downloads)
-
-A GitHub Actions workflow (`.github/workflows/release.yml`) builds both variants
-and attaches them to a GitHub Release automatically. To trigger it, tag a
-commit and push the tag:
-
-```
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-That kicks off the workflow, which:
-1. Builds a **framework-dependent** exe (small, needs the .NET 8 Desktop Runtime already installed)
-2. Builds a **self-contained single-file** exe (~150MB, no dependencies needed)
-3. Renames them to `BorderlessApp-FrameworkDependent.exe` and `BorderlessApp-SelfContained.exe`
-4. Publishes a GitHub Release for that tag with both attached
-
-Watch it run under your repo's **Actions** tab. Once it finishes, the release
-shows up under **Releases** with both files ready to download.
-
-To cut a new release later, bump the version and push a new tag (e.g. `v1.0.1`) —
-no manual building required.
 
 ## Using it
 
