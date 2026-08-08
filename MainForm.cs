@@ -1,0 +1,318 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+using Microsoft.Win32;
+
+namespace BorderlessApp
+{
+    public class MainForm : Form
+    {
+        private readonly ListBox _profileListBox = new ListBox();
+        private readonly Button _addButton = new Button();
+        private readonly Button _removeButton = new Button();
+        private readonly CheckBox _startupCheckBox = new CheckBox();
+        private readonly NotifyIcon _trayIcon = new NotifyIcon();
+        private readonly System.Windows.Forms.Timer _watcherTimer = new System.Windows.Forms.Timer();
+        private readonly List<GameProfile> _profiles;
+        private readonly Dictionary<string, Rectangle> _originalBounds =
+            new Dictionary<string, Rectangle>(StringComparer.OrdinalIgnoreCase);
+        private bool _isExiting;
+
+        private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+        private const string StartupValueName = "BorderlessWindowManager";
+
+        public MainForm()
+        {
+            _profiles = ConfigManager.Load();
+
+            SetupUI();
+            SetupTrayIcon();
+            RefreshProfileList();
+
+            _startupCheckBox.Checked = IsStartupEnabled();
+
+            _watcherTimer.Interval = 1500; // check twice a second is overkill; 1.5s is plenty
+            _watcherTimer.Tick += WatcherTimer_Tick;
+            _watcherTimer.Start();
+        }
+
+        // ----- UI setup -----
+
+        private void SetupUI()
+        {
+            Text = "Borderless Window Manager";
+            Width = 440;
+            Height = 400;
+            StartPosition = FormStartPosition.CenterScreen;
+            FormClosing += MainForm_FormClosing;
+            Resize += MainForm_Resize;
+
+            _profileListBox.SetBounds(12, 12, 400, 220);
+            Controls.Add(_profileListBox);
+
+            _addButton.Text = "Add Running Game...";
+            _addButton.SetBounds(12, 244, 190, 30);
+            _addButton.Click += AddButton_Click;
+            Controls.Add(_addButton);
+
+            _removeButton.Text = "Remove Selected";
+            _removeButton.SetBounds(210, 244, 130, 30);
+            _removeButton.Click += RemoveButton_Click;
+            Controls.Add(_removeButton);
+
+            _startupCheckBox.Text = "Start with Windows";
+            _startupCheckBox.SetBounds(12, 290, 200, 24);
+            _startupCheckBox.CheckedChanged += StartupCheckBox_CheckedChanged;
+            Controls.Add(_startupCheckBox);
+
+            var infoLabel = new Label
+            {
+                Text = "Closing this window minimizes it to the tray - it keeps\n" +
+                       "watching for your saved games in the background.\n" +
+                       "Use the tray icon's \"Exit\" to fully quit.",
+                ForeColor = Color.DimGray
+            };
+            infoLabel.SetBounds(12, 320, 400, 50);
+            Controls.Add(infoLabel);
+        }
+
+        private void SetupTrayIcon()
+        {
+            _trayIcon.Icon = SystemIcons.Application; // swap in a real .ico later
+            _trayIcon.Text = "Borderless Window Manager";
+            _trayIcon.Visible = true;
+            _trayIcon.DoubleClick += (s, e) => RestoreFromTray();
+
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("Open", null, (s, e) => RestoreFromTray());
+            menu.Items.Add("Exit", null, (s, e) =>
+            {
+                _isExiting = true;
+                Close();
+            });
+            _trayIcon.ContextMenuStrip = menu;
+        }
+
+        private void RestoreFromTray()
+        {
+            Show();
+            WindowState = FormWindowState.Normal;
+            Activate();
+        }
+
+        private void MainForm_Resize(object? sender, EventArgs e)
+        {
+            if (WindowState == FormWindowState.Minimized)
+                Hide();
+        }
+
+        private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            if (!_isExiting)
+            {
+                // "X" button just hides to tray so the watcher keeps running.
+                e.Cancel = true;
+                Hide();
+                return;
+            }
+
+            _trayIcon.Visible = false;
+            _watcherTimer.Stop();
+        }
+
+        // ----- Profile list -----
+
+        private void RefreshProfileList()
+        {
+            int selectedIndex = _profileListBox.SelectedIndex;
+
+            _profileListBox.Items.Clear();
+            foreach (var profile in _profiles)
+            {
+                var matches = Process.GetProcessesByName(profile.ProcessName);
+                bool running = matches.Length > 0;
+                foreach (var p in matches) p.Dispose();
+
+                string status = running ? "Running" : "Not running";
+                _profileListBox.Items.Add($"{profile.DisplayName}   [{profile.ProcessName}.exe]   -   {status}");
+            }
+
+            if (selectedIndex >= 0 && selectedIndex < _profileListBox.Items.Count)
+                _profileListBox.SelectedIndex = selectedIndex;
+        }
+
+        private void AddButton_Click(object? sender, EventArgs e)
+        {
+            var allProcs = Process.GetProcesses();
+            var candidates = new List<Process>();
+            var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var p in allProcs)
+            {
+                try
+                {
+                    // Touching properties on a process that's mid-exit, or
+                    // one that's elevated/protected, can throw. One bad
+                    // process here shouldn't stop us from checking the rest -
+                    // a LINQ .Where() chain would abort entirely on the
+                    // first exception, silently hiding everything after it
+                    // in enumeration order (including anything you just
+                    // launched).
+                    if (p.MainWindowHandle == IntPtr.Zero) continue;
+                    if (string.IsNullOrWhiteSpace(p.MainWindowTitle)) continue;
+                    if (!seenNames.Add(p.ProcessName)) continue; // de-dupe by process name
+
+                    candidates.Add(p);
+                }
+                catch
+                {
+                    // Skip it and keep going.
+                }
+            }
+
+            candidates = candidates.OrderBy(p => p.ProcessName).ToList();
+
+            using var pickerForm = new Form
+            {
+                Text = "Select a Running Game",
+                Width = 400,
+                Height = 340,
+                StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false,
+                MaximizeBox = false
+            };
+
+            var listBox = new ListBox();
+            listBox.SetBounds(10, 10, 360, 230);
+            foreach (var proc in candidates)
+                listBox.Items.Add($"{proc.MainWindowTitle}  ({proc.ProcessName}.exe)");
+            pickerForm.Controls.Add(listBox);
+
+            var okButton = new Button { Text = "Add Selected", DialogResult = DialogResult.OK };
+            okButton.SetBounds(10, 250, 150, 30);
+            pickerForm.Controls.Add(okButton);
+            pickerForm.AcceptButton = okButton;
+
+            var result = pickerForm.ShowDialog(this);
+
+            if (result == DialogResult.OK && listBox.SelectedIndex >= 0)
+            {
+                var chosen = candidates[listBox.SelectedIndex];
+
+                bool alreadySaved = _profiles.Any(p =>
+                    p.ProcessName.Equals(chosen.ProcessName, StringComparison.OrdinalIgnoreCase));
+
+                if (alreadySaved)
+                {
+                    MessageBox.Show(this, "That game is already saved.", "Already added");
+                }
+                else
+                {
+                    _profiles.Add(new GameProfile
+                    {
+                        ProcessName = chosen.ProcessName,
+                        DisplayName = chosen.MainWindowTitle
+                    });
+                    ConfigManager.Save(_profiles);
+                    RefreshProfileList();
+
+                    // It's already running, so apply immediately instead of
+                    // waiting for the next watcher tick.
+                    if (chosen.MainWindowHandle != IntPtr.Zero)
+                    {
+                        _originalBounds[chosen.ProcessName] = WindowHelper.GetWindowBounds(chosen.MainWindowHandle);
+                        WindowHelper.MakeBorderless(chosen.MainWindowHandle);
+                    }
+                }
+            }
+
+            foreach (var p in allProcs) p.Dispose();
+        }
+
+        private void RemoveButton_Click(object? sender, EventArgs e)
+        {
+            int index = _profileListBox.SelectedIndex;
+            if (index < 0) return;
+
+            var profile = _profiles[index];
+
+            // If it's currently running, give its border (and original
+            // size/position, if we remember it) back before forgetting it.
+            var procs = Process.GetProcessesByName(profile.ProcessName);
+            bool hasSavedBounds = _originalBounds.TryGetValue(profile.ProcessName, out var bounds);
+            foreach (var proc in procs)
+            {
+                try
+                {
+                    if (proc.MainWindowHandle == IntPtr.Zero) continue;
+                    WindowHelper.RestoreBorder(proc.MainWindowHandle, hasSavedBounds ? bounds : (Rectangle?)null);
+                }
+                finally
+                {
+                    proc.Dispose();
+                }
+            }
+            _originalBounds.Remove(profile.ProcessName);
+
+            _profiles.RemoveAt(index);
+            ConfigManager.Save(_profiles);
+            RefreshProfileList();
+        }
+
+        // ----- Background watcher -----
+
+        private void WatcherTimer_Tick(object? sender, EventArgs e)
+        {
+            foreach (var profile in _profiles)
+            {
+                var procs = Process.GetProcessesByName(profile.ProcessName);
+                foreach (var proc in procs)
+                {
+                    try
+                    {
+                        if (proc.MainWindowHandle == IntPtr.Zero) continue;
+
+                        // Only touch it if it still has a border - avoids
+                        // hammering SetWindowPos every 1.5s once it's done.
+                        if (WindowHelper.HasBorder(proc.MainWindowHandle))
+                        {
+                            // Capture fresh every time it's found bordered
+                            // (a relaunch might be at a different resolution
+                            // than last time).
+                            _originalBounds[profile.ProcessName] = WindowHelper.GetWindowBounds(proc.MainWindowHandle);
+                            WindowHelper.MakeBorderless(proc.MainWindowHandle);
+                        }
+                    }
+                    finally
+                    {
+                        proc.Dispose();
+                    }
+                }
+            }
+
+            RefreshProfileList();
+        }
+
+        // ----- Start with Windows -----
+
+        private bool IsStartupEnabled()
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryKey, false);
+            return key?.GetValue(StartupValueName) != null;
+        }
+
+        private void StartupCheckBox_CheckedChanged(object? sender, EventArgs e)
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryKey, true);
+            if (key == null) return;
+
+            if (_startupCheckBox.Checked)
+                key.SetValue(StartupValueName, Application.ExecutablePath);
+            else
+                key.DeleteValue(StartupValueName, false);
+        }
+    }
+}
