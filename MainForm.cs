@@ -17,8 +17,6 @@ namespace BorderlessApp
         private readonly NotifyIcon _trayIcon = new NotifyIcon();
         private readonly System.Windows.Forms.Timer _watcherTimer = new System.Windows.Forms.Timer();
         private readonly List<GameProfile> _profiles;
-        private readonly Dictionary<string, Rectangle> _originalBounds =
-            new Dictionary<string, Rectangle>(StringComparer.OrdinalIgnoreCase);
         private bool _isExiting;
 
         private const string StartupRegistryKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
@@ -211,21 +209,24 @@ namespace BorderlessApp
                 }
                 else
                 {
-                    _profiles.Add(new GameProfile
+                    var newProfile = new GameProfile
                     {
                         ProcessName = chosen.ProcessName,
                         DisplayName = chosen.MainWindowTitle
-                    });
-                    ConfigManager.Save(_profiles);
-                    RefreshProfileList();
+                    };
 
-                    // It's already running, so apply immediately instead of
-                    // waiting for the next watcher tick.
+                    // It's already running, so capture its current size/
+                    // position and apply immediately instead of waiting
+                    // for the next watcher tick.
                     if (chosen.MainWindowHandle != IntPtr.Zero)
                     {
-                        _originalBounds[chosen.ProcessName] = WindowHelper.GetWindowBounds(chosen.MainWindowHandle);
+                        newProfile.SetOriginalBounds(WindowHelper.GetWindowBounds(chosen.MainWindowHandle));
                         WindowHelper.MakeBorderless(chosen.MainWindowHandle);
                     }
+
+                    _profiles.Add(newProfile);
+                    ConfigManager.Save(_profiles);
+                    RefreshProfileList();
                 }
             }
 
@@ -242,20 +243,19 @@ namespace BorderlessApp
             // If it's currently running, give its border (and original
             // size/position, if we remember it) back before forgetting it.
             var procs = Process.GetProcessesByName(profile.ProcessName);
-            bool hasSavedBounds = _originalBounds.TryGetValue(profile.ProcessName, out var bounds);
+            var savedBounds = profile.GetOriginalBounds();
             foreach (var proc in procs)
             {
                 try
                 {
                     if (proc.MainWindowHandle == IntPtr.Zero) continue;
-                    WindowHelper.RestoreBorder(proc.MainWindowHandle, hasSavedBounds ? bounds : (Rectangle?)null);
+                    WindowHelper.RestoreBorder(proc.MainWindowHandle, savedBounds);
                 }
                 finally
                 {
                     proc.Dispose();
                 }
             }
-            _originalBounds.Remove(profile.ProcessName);
 
             _profiles.RemoveAt(index);
             ConfigManager.Save(_profiles);
@@ -266,6 +266,8 @@ namespace BorderlessApp
 
         private void WatcherTimer_Tick(object? sender, EventArgs e)
         {
+            bool configDirty = false;
+
             foreach (var profile in _profiles)
             {
                 var procs = Process.GetProcessesByName(profile.ProcessName);
@@ -281,9 +283,12 @@ namespace BorderlessApp
                         {
                             // Capture fresh every time it's found bordered
                             // (a relaunch might be at a different resolution
-                            // than last time).
-                            _originalBounds[profile.ProcessName] = WindowHelper.GetWindowBounds(proc.MainWindowHandle);
+                            // than last time), and persist it onto the
+                            // profile so Remove Selected can restore it
+                            // correctly even after an app restart.
+                            profile.SetOriginalBounds(WindowHelper.GetWindowBounds(proc.MainWindowHandle));
                             WindowHelper.MakeBorderless(proc.MainWindowHandle);
+                            configDirty = true;
                         }
                     }
                     finally
@@ -292,6 +297,9 @@ namespace BorderlessApp
                     }
                 }
             }
+
+            if (configDirty)
+                ConfigManager.Save(_profiles);
 
             RefreshProfileList();
         }

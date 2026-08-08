@@ -31,11 +31,11 @@ dotnet run
 4. From now on, whenever that game process is detected running (even if you opened this app first), it'll automatically be made borderless within ~1.5 seconds.
 5. Closing the main window just minimizes it to the system tray so the watcher keeps running — use the tray icon's right-click menu to fully **Exit**.
 6. Check **Start with Windows** if you want it running automatically at login (so you never have to remember to launch it first).
-7. Clicking **Remove Selected** restores that game's title bar and original size/position immediately (if it's currently running), then forgets about it — it won't be touched again unless you re-add it.
+7. Clicking **Remove Selected** restores that game's title bar and original size/position immediately (if it's currently running), then forgets about it — it won't be touched again unless you re-add it. This works even across app restarts, since the original size/position is saved to `config.json`, not just kept in memory.
+8. Only one instance can run at a time — launching a second copy while one is already running (even minimized to the tray) shows a message instead of starting a duplicate watcher.
 
 ## Known limitations / things to improve next
 
-- **Restore-on-remove only works while the app is running.** The original window size/position is kept in memory, not saved to disk — if you close the app entirely (Exit, not minimize) and reopen it, it no longer remembers a game's pre-borderless size, so removing that game will just restore the border at whatever size it currently is. Persisting this to `config.json` alongside each profile would fix it.
 - Matching is by **process name**, not window title, since titles change (level names, FPS counters, etc). If two different games share an executable name (rare), they'd conflict.
 - Games using **exclusive fullscreen** internally will fight this — make sure the game itself is set to "Windowed" in its own graphics settings first.
 - No handling yet for **multi-monitor** setups where you want the game on a non-primary display — currently it always sizes to the primary screen (`GetSystemMetrics`). Swapping in `Screen.AllScreens` (from `System.Windows.Forms`) to let the user pick a monitor is a natural next step.
