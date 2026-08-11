@@ -43,7 +43,7 @@ namespace BorderlessApp
         {
             Text = "Borderless Window Manager";
             Width = 440;
-            Height = 400;
+            Height = 410;
             StartPosition = FormStartPosition.CenterScreen;
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
@@ -57,7 +57,7 @@ namespace BorderlessApp
             _profileListBox.SetBounds(12, 12, 400, 220);
             Controls.Add(_profileListBox);
 
-            _addButton.Text = "Add Running Game...";
+            _addButton.Text = "Add Running Application...";
             _addButton.SetBounds(12, 244, 190, 30);
             _addButton.Click += AddButton_Click;
             Controls.Add(_addButton);
