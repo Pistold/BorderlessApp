@@ -54,16 +54,37 @@ jobs:
           # This one truly is a single file (runtime bundled in), so no zip needed.
           Copy-Item "publish/self-contained/BorderlessApp.exe" "release-assets/BorderlessApp-SelfContained.exe"
 
+      - name: Stamp installer version from the tag
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v',''
+          (Get-Content installer.iss) -replace '__VERSION__', $version | Set-Content installer.iss
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"'
+
+      - name: Copy installer to release assets
+        shell: pwsh
+        run: Copy-Item "installer-output\BorderlessApp-Setup.exe" "release-assets\BorderlessApp-Setup.exe"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            release-assets/BorderlessApp-Setup.exe
             release-assets/BorderlessApp-FrameworkDependent.zip
             release-assets/BorderlessApp-SelfContained.exe
           generate_release_notes: true
           body: |
-            **BorderlessApp-FrameworkDependent.zip** - small download. Unzip it (keep all the files together in one folder) and run `BorderlessApp.exe`. Requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) to already be installed.
+            **BorderlessApp-Setup.exe** - recommended. Proper installer: Start Menu shortcut, optional desktop shortcut, and shows up in Windows Settings > Apps so you can uninstall it cleanly from there. No dependencies needed.
 
-            **BorderlessApp-SelfContained.exe** - larger single-file download (~150MB), but works standalone with nothing else to install.
+            **BorderlessApp-FrameworkDependent.zip** - portable, no install. Unzip it (keep all the files together in one folder) and run `BorderlessApp.exe`. Requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) to already be installed.
+
+            **BorderlessApp-SelfContained.exe** - portable, no install, single file (~150MB), but works standalone with nothing else to install.
 
             Unsigned build - Windows SmartScreen may warn on first run. Click "More info" -> "Run anyway".

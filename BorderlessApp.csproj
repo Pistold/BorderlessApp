@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>BorderlessApp</RootNamespace>
     <AssemblyName>BorderlessApp</AssemblyName>
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

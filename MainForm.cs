@@ -48,6 +48,12 @@ namespace BorderlessApp
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
 
+            // Pull the icon that's compiled into the exe (via <ApplicationIcon>
+            // in the .csproj) rather than loading the .ico file separately -
+            // this way it works the same whether running the framework-
+            // dependent, self-contained, or installed build.
+            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
+
             _profileListBox.SetBounds(12, 12, 400, 220);
             Controls.Add(_profileListBox);
 
@@ -79,7 +85,7 @@ namespace BorderlessApp
 
         private void SetupTrayIcon()
         {
-            _trayIcon.Icon = SystemIcons.Application; // swap in a real .ico later
+            _trayIcon.Icon = Icon; // same icon set on the form in SetupUI
             _trayIcon.Text = "Borderless Window Manager";
             _trayIcon.Visible = true;
             _trayIcon.DoubleClick += (s, e) => RestoreFromTray();

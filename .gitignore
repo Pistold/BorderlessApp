@@ -12,6 +12,9 @@ publish/
 *.pubxml
 *.pubxml.user
 
+# Inno Setup installer output
+installer-output/
+
 # Rider / JetBrains
 .idea/
 *.sln.iml
