@@ -1,7 +1,7 @@
 # Borderless Window Manager
 
-A small Windows tray app: pick a running game once, and it stays borderless
-automatically from then on — even if you launch the app before the game.
+A small Windows tray app: pick a running game or any window once, and it stays borderless
+automatically from then on. even if you launch the app before the game.  This only works if a game is in windowed mode before you add it to the list.
 
 ## How it works
 
@@ -10,48 +10,6 @@ automatically from then on — even if you launch the app before the game.
 - **WindowHelper.cs** — the actual WinAPI calls that strip a window's title bar/border and resize it to fill the screen
 - **MainForm.cs** — the UI: list of saved games, "Add Running Game" picker, tray icon, and a background timer that checks every 1.5s for any saved game that's running and borders it
 - **Program.cs** — entry point
-
-## Building it
-
-1. Install **Visual Studio Community** (free) with the ".NET desktop development" workload.
-2. Open Visual Studio → **File → Open → Project/Folder** → select this `BorderlessApp` folder (the `.csproj` will be picked up automatically).
-3. Press **F5** (or Ctrl+F5 to run without debugging).
-
-Alternatively, from a terminal with the .NET SDK installed:
-```
-cd BorderlessApp
-dotnet run
-```
-
-## Cutting a release (both .exe downloads)
-
-A GitHub Actions workflow (`.github/workflows/release.yml`) builds both variants
-and attaches them to a GitHub Release automatically. To trigger it, tag a
-commit and push the tag:
-
-```
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-That kicks off the workflow, which:
-1. Builds a **framework-dependent** app (needs the .NET 8 Desktop Runtime already installed) — packaged as `BorderlessApp-FrameworkDependent.zip`, since this variant is several files (the exe plus its `.dll`/`.json` config) that all need to sit together in one folder
-2. Builds a **self-contained single-file** exe (~150MB, no dependencies needed) as `BorderlessApp-SelfContained.exe` — genuinely one file, no zip needed
-3. Packages the self-contained build into `BorderlessApp-Setup.exe` (via Inno Setup) — a proper installer with Start Menu/desktop shortcuts that registers in Windows Settings > Apps, so it can be uninstalled cleanly from there
-4. Publishes a GitHub Release for that tag with all three attached
-
-The installer script is `installer.iss`. Its `AppId` (a GUID) must stay
-identical across every future release — that's how Windows recognizes a
-new version as an *upgrade* of the same app rather than a separate program.
-It's already set; just don't change it. Version numbers are stamped in
-automatically from the git tag you push, so you don't need to edit the
-script for each release.
-
-Watch it run under your repo's **Actions** tab. Once it finishes, the release
-shows up under **Releases** with both files ready to download.
-
-To cut a new release later, bump the version and push a new tag (e.g. `v1.0.1`) —
-no manual building required.
 
 ## Using it
 
@@ -67,6 +25,6 @@ no manual building required.
 ## Known limitations / things to improve next
 
 - Matching is by **process name**, not window title, since titles change (level names, FPS counters, etc). If two different games share an executable name (rare), they'd conflict.
-- Games using **exclusive fullscreen** internally will fight this — make sure the game itself is set to "Windowed" in its own graphics settings first.
+- Games using **exclusive fullscreen** internally will fight this app. Make sure the game itself is set to "Windowed" in its own graphics settings first.
 - The tray icon uses a placeholder system icon — swap in a real `.ico` file for a polished look.
 - If you checked **Start with Windows** inside the app, that adds its own `HKCU...\Run` registry entry independently of the installer. Uninstalling via **Settings > Apps** removes the app itself, but won't know to clean up that entry — uncheck the box in-app before uninstalling to avoid a stale startup entry.
