@@ -45,7 +45,7 @@ namespace BorderlessApp
         {
             Text = "Borderless Window Manager";
             Width = 440;
-            Height = 440;
+            Height = 450;
             StartPosition = FormStartPosition.CenterScreen;
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
