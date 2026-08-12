@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -14,6 +15,7 @@ namespace BorderlessApp
         private readonly Button _addButton = new Button();
         private readonly Button _removeButton = new Button();
         private readonly CheckBox _startupCheckBox = new CheckBox();
+        private readonly Button _uninstallButton = new Button();
         private readonly NotifyIcon _trayIcon = new NotifyIcon();
         private readonly System.Windows.Forms.Timer _watcherTimer = new System.Windows.Forms.Timer();
         private readonly List<GameProfile> _profiles;
@@ -43,7 +45,7 @@ namespace BorderlessApp
         {
             Text = "Borderless Window Manager";
             Width = 440;
-            Height = 410;
+            Height = 440;
             StartPosition = FormStartPosition.CenterScreen;
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
@@ -72,6 +74,14 @@ namespace BorderlessApp
             _startupCheckBox.CheckedChanged += StartupCheckBox_CheckedChanged;
             Controls.Add(_startupCheckBox);
 
+            // Deliberately separated from the Add/Remove row and colored as
+            // a caution action so it's not an easy misclick.
+            _uninstallButton.Text = "Uninstall App...";
+            _uninstallButton.SetBounds(12, 322, 150, 28);
+            _uninstallButton.ForeColor = Color.DarkRed;
+            _uninstallButton.Click += UninstallButton_Click;
+            Controls.Add(_uninstallButton);
+
             var infoLabel = new Label
             {
                 Text = "Closing this window minimizes it to the tray - it keeps\n" +
@@ -79,7 +89,7 @@ namespace BorderlessApp
                        "Use the tray icon's \"Exit\" to fully quit.",
                 ForeColor = Color.DimGray
             };
-            infoLabel.SetBounds(12, 320, 400, 50);
+            infoLabel.SetBounds(12, 360, 400, 50);
             Controls.Add(infoLabel);
         }
 
@@ -181,7 +191,7 @@ namespace BorderlessApp
 
             using var pickerForm = new Form
             {
-                Text = "Select a Running Game",
+                Text = "Select a Running Application",
                 Width = 400,
                 Height = 340,
                 StartPosition = FormStartPosition.CenterParent,
@@ -266,6 +276,77 @@ namespace BorderlessApp
             _profiles.RemoveAt(index);
             ConfigManager.Save(_profiles);
             RefreshProfileList();
+        }
+
+        private void UninstallButton_Click(object? sender, EventArgs e)
+        {
+            // If this is the properly-installed copy, Inno Setup drops its
+            // generated uninstaller right next to the exe.
+            string? exeDir = Path.GetDirectoryName(Application.ExecutablePath);
+            string installedUninstallerPath = Path.Combine(exeDir ?? "", "unins000.exe");
+            bool isInstalledCopy = File.Exists(installedUninstallerPath);
+
+            string confirmMessage = isInstalledCopy
+                ? "This will remove your saved games list and app settings, " +
+                  "clear any startup entry, then open Windows' uninstaller to " +
+                  "remove the app itself. This can't be undone.\n\nContinue?"
+                : "This will remove your saved games list, app settings, and " +
+                  "any startup entry. You'll still need to delete this app's " +
+                  "files/folder yourself afterward. This can't be undone.\n\nContinue?";
+
+            var confirm = MessageBox.Show(this, confirmMessage, "Uninstall Borderless Window Manager",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+
+            if (confirm != DialogResult.Yes) return;
+
+            _watcherTimer.Stop();
+
+            // Give every currently-running saved game its border back
+            // before we forget about all of them.
+            foreach (var profile in _profiles)
+            {
+                var procs = Process.GetProcessesByName(profile.ProcessName);
+                var savedBounds = profile.GetOriginalBounds();
+                foreach (var proc in procs)
+                {
+                    try
+                    {
+                        if (proc.MainWindowHandle != IntPtr.Zero)
+                            WindowHelper.RestoreBorder(proc.MainWindowHandle, savedBounds);
+                    }
+                    finally
+                    {
+                        proc.Dispose();
+                    }
+                }
+            }
+
+            // Remove the "Start with Windows" registry entry, if one was made.
+            using (var key = Registry.CurrentUser.OpenSubKey(StartupRegistryKey, true))
+                key?.DeleteValue(StartupValueName, throwOnMissingValue: false);
+
+            // Wipe the saved config folder in %AppData%.
+            ConfigManager.DeleteAll();
+
+            _isExiting = true;
+            _trayIcon.Visible = false;
+
+            if (isInstalledCopy)
+            {
+                // Hand off to Windows' real uninstaller so the Start Menu
+                // shortcuts, Program Files copy, and Apps-list entry get
+                // cleaned up too. It shows its own confirmation/progress UI.
+                Process.Start(installedUninstallerPath);
+            }
+            else
+            {
+                MessageBox.Show(this,
+                    "Settings and startup entries have been removed. You can " +
+                    "now delete this app's files/folder manually.",
+                    "Cleanup complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+            Application.Exit();
         }
 
         // ----- Background watcher -----

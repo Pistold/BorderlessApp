@@ -36,5 +36,20 @@ namespace BorderlessApp
             string json = JsonSerializer.Serialize(profiles, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(ConfigPath, json);
         }
+
+        // Wipes the whole %AppData%\BorderlessGameApp folder - used by the
+        // in-app Uninstall button.
+        public static void DeleteAll()
+        {
+            try
+            {
+                if (Directory.Exists(ConfigDir))
+                    Directory.Delete(ConfigDir, recursive: true);
+            }
+            catch
+            {
+                // Best effort - not worth blocking the uninstall flow over.
+            }
+        }
     }
 }
