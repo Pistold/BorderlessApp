@@ -81,9 +81,9 @@ jobs:
             release-assets/BorderlessApp-SelfContained.exe
           generate_release_notes: true
           body: |
-            **BorderlessApp-Setup.exe** - recommended. Proper installer: Start Menu shortcut, optional desktop shortcut, and shows up in Windows Settings > Apps so you can uninstall it cleanly from there. No dependencies needed.
+            **BorderlessApp-Setup.exe** - recommended. Proper installer: Start Menu shortcut, optional desktop shortcut, and shows up in Windows Settings > Apps so you can uninstall it cleanly from there. No dependencies needed. Uses about 12MB in tray
 
-            **BorderlessApp-FrameworkDependent.zip** - portable, no install. Unzip it (keep all the files together in one folder) and run `BorderlessApp.exe`. Requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) to already be installed.
+            **BorderlessApp-FrameworkDependent.zip** - not recommended. Portable, no install. Unzip it (keep all the files together in one folder) and run `BorderlessApp.exe`. Requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) to already be installed. App uses 12MB in tray but .NET uses about 100MB in tray at the same time.
 
             **BorderlessApp-SelfContained.exe** - portable, no install, single file (~150MB), but works standalone with nothing else to install.
 
