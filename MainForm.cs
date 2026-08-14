@@ -117,6 +117,16 @@ namespace BorderlessApp
             Activate();
         }
 
+        protected override void WndProc(ref Message m)
+        {
+            // A second launch attempt (blocked by the single-instance mutex
+            // in Program.cs) broadcasts this to ask us to come back into view.
+            if ((uint)m.Msg == WindowHelper.ShowExistingInstanceMessage)
+                RestoreFromTray();
+
+            base.WndProc(ref m);
+        }
+
         private void MainForm_Resize(object? sender, EventArgs e)
         {
             if (WindowState == FormWindowState.Minimized)
