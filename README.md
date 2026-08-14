@@ -1,7 +1,7 @@
 # Borderless Window Manager
 
 A small Windows tray app: pick a running game or any window once, and it stays borderless
-automatically from then on. even if you launch the app before the game.  This only works if a game is in windowed mode before you add it to the list.
+automatically from then on. even if you launch the app before the game.  This only works if a game is in windowed mode before you add it to the list.  Recommend using the Setup for easy and clean uninstall using windows.
 
 ## How it works
 
@@ -26,5 +26,4 @@ automatically from then on. even if you launch the app before the game.  This on
 
 - Matching is by **process name**, not window title, since titles change (level names, FPS counters, etc). If two different games share an executable name (rare), they'd conflict.
 - Games using **exclusive fullscreen** internally will fight this app. Make sure the game itself is set to "Windowed" in its own graphics settings first.
-- The tray icon uses a placeholder system icon — swap in a real `.ico` file for a polished look.
 - If you checked **Start with Windows** inside the app, that adds its own `HKCU...\Run` registry entry independently of the installer. Uninstalling via **Settings > Apps** removes the app itself, but won't know to clean up that entry — uncheck the box in-app before uninstalling to avoid a stale startup entry.
