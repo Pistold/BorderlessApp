@@ -34,7 +34,7 @@ namespace BorderlessApp
 
             _startupCheckBox.Checked = IsStartupEnabled();
 
-            _watcherTimer.Interval = 1500; // check twice a second is overkill; 1.5s is plenty
+            _watcherTimer.Interval = 1500; // checks if the app is running every 1.5s
             _watcherTimer.Tick += WatcherTimer_Tick;
             _watcherTimer.Start();
         }
