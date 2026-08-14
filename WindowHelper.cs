@@ -20,6 +20,28 @@ namespace BorderlessApp
         [DllImport("user32.dll")]
         private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern uint RegisterWindowMessage(string lpString);
+
+        [DllImport("user32.dll")]
+        private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        private static readonly IntPtr HWND_BROADCAST = new IntPtr(0xffff);
+
+        // A custom, system-wide-unique message ID (guaranteed unique by
+        // Windows for this exact string) used to tell an already-running
+        // instance "someone tried to launch you again - show yourself".
+        public static readonly uint ShowExistingInstanceMessage =
+            RegisterWindowMessage("BorderlessGameApp-ShowExistingInstance-8F3E2C11");
+
+        // Called by a second launch that's about to exit (mutex already
+        // held by another instance) to ask the running instance to restore
+        // its window instead of leaving the user stuck with no way back in.
+        public static void RequestExistingInstanceToShow()
+        {
+            PostMessage(HWND_BROADCAST, ShowExistingInstanceMessage, IntPtr.Zero, IntPtr.Zero);
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
         {
