@@ -36,7 +36,7 @@ namespace BorderlessApp
 
         // Called by a second launch that's about to exit (mutex already
         // held by another instance) to ask the running instance to restore
-        // its window instead of leaving the user stuck with no way back in.
+        // its window instead of leaving the user stuck with no way back in with the desktop icon
         public static void RequestExistingInstanceToShow()
         {
             PostMessage(HWND_BROADCAST, ShowExistingInstanceMessage, IntPtr.Zero, IntPtr.Zero);
