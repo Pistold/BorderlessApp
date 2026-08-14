@@ -18,12 +18,10 @@ namespace BorderlessApp
             {
                 // Another instance already owns the mutex - including one
                 // that's minimized to the tray, since closing the main
-                // window only hides it rather than exiting.
-                MessageBox.Show(
-                    "Borderless Window Manager is already running - check your system tray.",
-                    "Already running",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                // window only hides it rather than exiting. Ask it to
+                // restore its own window instead of leaving the user with
+                // no way to get back to it.
+                WindowHelper.RequestExistingInstanceToShow();
                 return;
             }
 
