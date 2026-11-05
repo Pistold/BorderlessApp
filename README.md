@@ -5,7 +5,7 @@ automatically from then on. even if you launch the app before the game.  This on
 
 ## How it works
 
-- **GameProfile.cs** — the saved data for one game (name and )
+- **GameProfile.cs** — the saved data for one game (name and exe icon)
 - **ConfigManager.cs** — saves/loads your list of games as JSON to `%AppData%\BorderlessGameApp\config.json`
 - **WindowHelper.cs** — the actual WinAPI calls that strip a window's title bar/border and resize it to fill the screen
 - **MainForm.cs** — the UI: list of saved games, "Add Running Game" picker, tray icon, and a background timer that checks every 1.5s for any saved game that's running and borders it
