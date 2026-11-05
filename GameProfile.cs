@@ -11,6 +11,10 @@ namespace BorderlessApp
         public string ProcessName { get; set; } = "";
         public string DisplayName { get; set; } = "";
 
+        // Full path to the game's exe, captured while it's running, so its
+        // icon can still be shown in the list when it isn't running.
+        public string ExecutablePath { get; set; } = "";
+
         // The window's size/position from just before it was made
         // borderless, so it can be put back exactly if the profile is
         // removed. Persisted (not just kept in memory) so this still works
