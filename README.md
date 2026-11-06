@@ -1,15 +1,7 @@
 # Borderless Window Manager
 
 A small Windows tray app: pick a running game or any window once, and it stays borderless
-automatically from then on. even if you launch the app before the game.  This only works if a game is in windowed mode before you add it to the list.  Recommend using the Setup for easy and clean uninstall using windows.
-
-## How it works
-
-- **GameProfile.cs** — the saved data for one game (name and exe icon)
-- **ConfigManager.cs** — saves/loads your list of games as JSON to `%AppData%\BorderlessGameApp\config.json`
-- **WindowHelper.cs** — the actual WinAPI calls that strip a window's title bar/border and resize it to fill the screen
-- **MainForm.cs** — the UI: list of saved games, "Add Running Game" picker, tray icon, and a background timer that checks every 1.5s for any saved game that's running and borders it
-- **Program.cs** — entry point
+automatically from then on. even if you launch the app before the game.  This only works if a game is in windowed mode before you add it to the list.  Recommend using the xSetup for easy and clean uninstall using windows.
 
 ## Using it
 
@@ -27,4 +19,4 @@ automatically from then on. even if you launch the app before the game.  This on
 - Matching is by **process name**, not window title, since titles change (level names, FPS counters, etc). If two different games share an executable name (rare), they'd conflict.
 - Games using **exclusive fullscreen** internally will fight this app. Make sure the game itself is set to "Windowed" in its own graphics settings first.
 - If you checked **Start with Windows** inside the app, that adds its own `HKCU...\Run` registry entry independently of the installer. Uninstalling via **Settings > Apps** removes the app itself, but won't know to clean up that entry — uncheck the box in-app before uninstalling to avoid a stale startup entry.
-- Will likely change the app so that the left side has the non added games and right side has the added games so it doesnt open another window just to add something
+- Will likely change the app so that the left side has the non-added games and right side has the added games so it doesnt open another window just to add something.
