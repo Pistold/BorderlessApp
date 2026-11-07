@@ -19,4 +19,4 @@ automatically from then on. even if you launch the app before the game.  This on
 - Matching is by **process name**, not window title, since titles change (level names, FPS counters, etc). If two different games share an executable name (rare), they'd conflict.
 - Games using **exclusive fullscreen** internally will fight this app. Make sure the game itself is set to "Windowed" in its own graphics settings first.
 - If you checked **Start with Windows** inside the app, that adds its own `HKCU...\Run` registry entry independently of the installer. Uninstalling via **Settings > Apps** removes the app itself, but won't know to clean up that entry — uncheck the box in-app before uninstalling to avoid a stale startup entry.
-- Will likely change the app so that the left side has the non-added games and right side has the added games so it doesnt open another window just to add something.
+- Will likely change the app so that the left side has the non-added games and right side. The added games so it doesnt open another window just to add something.
