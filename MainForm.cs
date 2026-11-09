@@ -48,7 +48,7 @@ namespace BorderlessApp
 
             _startupCheckBox.Checked = IsStartupEnabled();
 
-            _watcherTimer.Interval = 1500; // check twice a second is overkill; 1.5s is plenty
+            _watcherTimer.Interval = 1500; // check every 1.5s 
             _watcherTimer.Tick += WatcherTimer_Tick;
             _watcherTimer.Start();
         }
@@ -67,8 +67,8 @@ namespace BorderlessApp
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
 
-            // Pull the icon that's compiled into the exe (via <ApplicationIcon>
-            // in the .csproj) rather than loading the .ico file separately -
+            // Pull the icon that's compiled into the exe via <ApplicationIcon>
+            // in the .csproj rather than loading the .ico file separately -
             // this way it works the same whether running the framework-
             // dependent, self-contained, or installed build.
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
@@ -338,7 +338,7 @@ namespace BorderlessApp
                 running ? "Running" : "Not running", running);
         }
 
-        // The game's own icon, pulled from its exe. Falls back to a generic
+        // The game's own icon pulled from its exe. Falls back to a generic
         // icon if the path isn't known yet or the exe can't be read.
         private Bitmap GetGameIcon(GameProfile profile)
         {
