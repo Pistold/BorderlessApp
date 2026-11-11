@@ -5,14 +5,11 @@ using System.IO;
 
 namespace BorderlessApp
 {
-    // Best-effort "does this process look like a game?" check.
-    //
-    // Windows has no real flag for this, so it's a heuristic: known
-    // non-games are ruled out, then it looks for positive signals (living in
-    // a game library folder, an engine's folder layout, or a graphics API
-    // loaded into the process). It will occasionally miss a game or let a
-    // non-game through - which is why the picker has a "Games only" toggle
-    // instead of hiding things permanently.
+    
+    // looks for signals that this process is a game (living in a game library folder,
+    // an engine's folder layout, or a graphics API loaded into the process).
+    // It will occasionally miss a game or let a non-game through
+    // which is why the picker has a "Games only" toggle
     public static class GameFilter
     {
         // Common windowed apps that load graphics libraries but aren't games,
@@ -36,7 +33,7 @@ namespace BorderlessApp
             "BorderlessApp"
         };
 
-        // Lowercase path fragments that strongly suggest a game install.
+        // common paths that strongly suggest a game install.
         private static readonly string[] GameFolderMarkers =
         {
             @"\steamapps\common\",
