@@ -338,7 +338,7 @@ namespace BorderlessApp
                 running ? "Running" : "Not running", running);
         }
 
-        // The game's own icon, pulled from its exe. Falls back to a generic
+        // The game's own icon pulled from its exe. Falls back to a generic
         // icon if the path isn't known yet or the exe can't be read.
         private Bitmap GetGameIcon(GameProfile profile)
         {
@@ -417,7 +417,6 @@ namespace BorderlessApp
                     // launched).
                     if (p.MainWindowHandle == IntPtr.Zero) continue;
                     if (string.IsNullOrWhiteSpace(p.MainWindowTitle)) continue;
-                    if (p.Id == Environment.ProcessId) continue; // not this app's own window
                     if (!seenNames.Add(p.ProcessName)) continue; // de-dupe by process name
 
                     candidates.Add(p);
@@ -430,31 +429,23 @@ namespace BorderlessApp
 
             candidates = candidates.OrderBy(p => p.ProcessName).ToList();
 
-            // Snapshot titles/names/paths/icons up front so painting the dialog
-            // never has to touch a Process that may have exited meanwhile.
+            // Snapshot titles/names/icons up front so painting the dialog
+            // never has to touch a Process that may have exited while running
             var titles = candidates.Select(c =>
             {
                 try { return c.MainWindowTitle; }
                 catch { return c.ProcessName; }
             }).ToList();
             var exeNames = candidates.Select(c => $"{c.ProcessName}.exe").ToList();
-            var exePaths = candidates.Select(TryGetExePath).ToList();
-            var candidateIcons = exePaths
-                .Select(path => TryLoadIcon(path) ?? _fallbackIcon)
+            var candidateIcons = candidates
+                .Select(c => TryLoadIcon(TryGetExePath(c)) ?? _fallbackIcon)
                 .ToList();
-            var looksLikeGame = candidates
-                .Select((c, i) => GameFilter.LooksLikeGame(c, exePaths[i]))
-                .ToList();
-
-            // Maps a row in the (possibly filtered) list back to its index in
-            // `candidates`.
-            var visible = new List<int>();
 
             using var pickerForm = new Form
             {
                 Text = "Select a Running Game",
-                ClientSize = new Size(460, 470),
-                MinimumSize = new Size(380, 390),
+                ClientSize = new Size(460, 440),
+                MinimumSize = new Size(380, 360),
                 StartPosition = FormStartPosition.CenterParent,
                 MinimizeBox = false,
                 MaximizeBox = false,
@@ -470,12 +461,11 @@ namespace BorderlessApp
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 4,
+                RowCount = 3,
                 Padding = new Padding(16),
                 BackColor = Theme.Background
             };
             pickerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            pickerLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             pickerLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             pickerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             pickerLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -485,36 +475,8 @@ namespace BorderlessApp
                 Text = "Choose the game window to make borderless.",
                 ForeColor = Theme.TextSecondary,
                 AutoSize = true,
-                Margin = new Padding(0, 0, 0, 8)
+                Margin = new Padding(0, 0, 0, 10)
             }, 0, 0);
-
-            // Filter row: "Games only" toggle plus a note that it's a best guess.
-            var filterRow = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                AutoSize = true,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
-                Margin = new Padding(0, 0, 0, 8)
-            };
-            var gamesOnlyCheck = new CheckBox
-            {
-                Text = "Games only",
-                Checked = true,
-                AutoSize = true,
-                ForeColor = Theme.TextPrimary,
-                Margin = new Padding(0, 0, 10, 0)
-            };
-            filterRow.Controls.Add(gamesOnlyCheck);
-            filterRow.Controls.Add(new Label
-            {
-                Text = "Best guess - untick to see every app",
-                Font = Theme.Small,
-                ForeColor = Theme.TextSecondary,
-                AutoSize = true,
-                Margin = new Padding(0, 3, 0, 0)
-            });
-            pickerLayout.Controls.Add(filterRow, 0, 1);
 
             var pickerCard = new Panel
             {
@@ -533,51 +495,19 @@ namespace BorderlessApp
                 ItemHeight = 56,
                 IntegralHeight = false
             };
+            foreach (var title in titles)
+                listBox.Items.Add(title);
             listBox.HandleCreated += (s, args) => Theme.ApplyDarkScrollbars(listBox);
             listBox.DrawItem += (s, args) =>
             {
-                if (args.Index < 0 || args.Index >= visible.Count) return;
+                if (args.Index < 0 || args.Index >= candidates.Count) return;
 
-                int i = visible[args.Index];
                 bool selected = (args.State & DrawItemState.Selected) == DrawItemState.Selected;
                 Theme.DrawRow(args.Graphics, args.Bounds, selected,
-                    candidateIcons[i], titles[i], exeNames[i]);
+                    candidateIcons[args.Index], titles[args.Index], exeNames[args.Index]);
             };
-
-            // Shown over the list when the current filter leaves nothing.
-            var pickerEmpty = new Label
-            {
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Theme.Surface,
-                ForeColor = Theme.TextSecondary
-            };
-            listBox.Controls.Add(pickerEmpty);
-
-            void RebuildPickerList()
-            {
-                visible.Clear();
-                listBox.BeginUpdate();
-                listBox.Items.Clear();
-                for (int i = 0; i < candidates.Count; i++)
-                {
-                    if (gamesOnlyCheck.Checked && !looksLikeGame[i]) continue;
-                    visible.Add(i);
-                    listBox.Items.Add(titles[i]);
-                }
-                listBox.EndUpdate();
-
-                pickerEmpty.Text = gamesOnlyCheck.Checked
-                    ? "No games detected\n\nStart your game in windowed mode, or\nuntick Games only to see every app."
-                    : "No windows found.";
-                pickerEmpty.Visible = visible.Count == 0;
-            }
-
-            gamesOnlyCheck.CheckedChanged += (s, args) => RebuildPickerList();
-            RebuildPickerList();
-
             pickerCard.Controls.Add(listBox);
-            pickerLayout.Controls.Add(pickerCard, 0, 2);
+            pickerLayout.Controls.Add(pickerCard, 0, 1);
 
             // Right-aligned Add / Cancel (RightToLeft flow: first added sits rightmost).
             var pickerButtons = new FlowLayoutPanel
@@ -609,7 +539,7 @@ namespace BorderlessApp
             Theme.StyleButton(cancelButton, ButtonKind.Secondary);
             pickerButtons.Controls.Add(cancelButton);
 
-            pickerLayout.Controls.Add(pickerButtons, 0, 3);
+            pickerLayout.Controls.Add(pickerButtons, 0, 2);
             pickerForm.Controls.Add(pickerLayout);
             pickerForm.AcceptButton = okButton;
             pickerForm.CancelButton = cancelButton;
@@ -625,7 +555,7 @@ namespace BorderlessApp
 
             if (result == DialogResult.OK && listBox.SelectedIndex >= 0)
             {
-                var chosen = candidates[visible[listBox.SelectedIndex]];
+                var chosen = candidates[listBox.SelectedIndex];
 
                 bool alreadySaved = _profiles.Any(p =>
                     p.ProcessName.Equals(chosen.ProcessName, StringComparison.OrdinalIgnoreCase));
@@ -804,9 +734,8 @@ namespace BorderlessApp
                         if (WindowHelper.HasBorder(proc.MainWindowHandle))
                         {
                             // Capture fresh every time it's found bordered
-                            // (a relaunch might be at a different resolution
-                            // than last time), and persist it onto the
-                            // profile so Remove Selected can restore it
+                            // (a relaunch might be at a different resolution than last time)
+                            // and persist it onto the profile so Remove Selected can restore it
                             // correctly even after an app restart.
                             profile.SetOriginalBounds(WindowHelper.GetWindowBounds(proc.MainWindowHandle));
                             WindowHelper.MakeBorderless(proc.MainWindowHandle);
